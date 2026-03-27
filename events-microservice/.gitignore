@@ -1,0 +1,39 @@
+.env
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.cover
+*.egg
+*.egg-info/
+dist/
+build/
+.eggs/
+htmlcov/
+*.log
+.coverage
+.pytest_cache/
+# virtualenv
+.venv/
+env/
+venv/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# SQLite DB (if created locally)
+*.db
+
+# Docker
+/docker-compose.override.yml
+
+# macOS
+.DS_Store
+
+# explicitly ignore app local gitignore
+app/.gitignore

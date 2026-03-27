@@ -1,0 +1,2 @@
+CREATE DATABASE "Events";
+CREATE DATABASE "Registrations";
