@@ -1,4 +1,6 @@
 import logging
+from pydantic import ValidationError
+
 from app.repositories.bike_repository import bike_repository
 from app.models.bike import BikeLifecycleEvent, LocationEvent
 
@@ -16,6 +18,10 @@ async def handle_lifecycle_event(payload: dict):
         else:
             logger.warning(f"Unknown lifecycle action: {event.action}")
             
+    except ValidationError as e:
+        logger.error(f"Validation error handling lifecycle event: {e}")
+        # Swallow ValidationError to avoid infinite retries
+        return
     except Exception as e:
         logger.error(f"Error handling lifecycle event: {e}")
         # Depending on requirements, we can choose to swallow validation errors or raise them
@@ -38,6 +44,10 @@ async def handle_location_event(payload: dict):
         if not updated_bike:
             logger.warning(f"Location update ignored. Bike {event.bike_id} not found in repository.")
             
+    except ValidationError as e:
+        logger.error(f"Validation error handling location event: {e}")
+        # Swallow ValidationError to avoid infinite retries
+        return
     except Exception as e:
         logger.error(f"Error handling location event: {e}")
         raise

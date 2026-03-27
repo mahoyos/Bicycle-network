@@ -11,8 +11,12 @@ class DatabaseManager:
     async def connect(self):
         logger.info("Connecting to MongoDB...")
         self.client = AsyncIOMotorClient(settings.mongodb_url)
+        
+        # Ping forzado para validar que la conexión es real
+        await self.client.admin.command('ping')
+        
         self.db = self.client[settings.mongodb_db_name]
-        logger.info("Connected to MongoDB.")
+        logger.info("Connected to MongoDB successfully.")
 
     async def close(self):
         if self.client:

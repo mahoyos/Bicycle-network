@@ -34,14 +34,16 @@ async def test_handle_lifecycle_event_deleted(mock_bike_repo):
     mock_bike_repo.delete_bike.assert_called_once_with("bike_del")
 
 @pytest.mark.asyncio
-async def test_handle_lifecycle_event_invalid_schema():
+async def test_handle_lifecycle_event_invalid_schema(mock_bike_repo):
     payload = {
         "bike_id": "bike_wrong",
         # missing action
     }
     
-    with pytest.raises(Exception):
-        await handle_lifecycle_event(payload)
+    # Should swallow ValidationError and not raise Exception
+    await handle_lifecycle_event(payload)
+    mock_bike_repo.create_bike.assert_not_called()
+    mock_bike_repo.delete_bike.assert_not_called()
 
 @pytest.mark.asyncio
 async def test_handle_location_event(mock_bike_repo):

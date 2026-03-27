@@ -68,7 +68,7 @@ async def test_update_location(repo, mocker):
     now = datetime.now(timezone.utc)
     
     mock_result = MagicMock()
-    mock_result.modified_count = 1
+    mock_result.matched_count = 1
     mock_collection.update_one.return_value = mock_result
     
     # Mock get_bike so it returns something after update

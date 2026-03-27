@@ -65,7 +65,7 @@ class BikeRepository:
             {"$set": update_data}
         )
         
-        if result.modified_count > 0:
+        if result.matched_count > 0:
             logger.info(f"Bike {bike_id} location updated.")
             return await self.get_bike(bike_id)
         
