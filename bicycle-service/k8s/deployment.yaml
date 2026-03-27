@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bicycle-service
+  namespace: bicycle-network
+  labels:
+    app: bicycle-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: bicycle-service
+  template:
+    metadata:
+      labels:
+        app: bicycle-service
+    spec:
+      containers:
+        - name: bicycle-service
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/bicycle-service:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - secretRef:
+                name: bicycle-service-secrets
+          env:
+            - name: RUN_MIGRATIONS
+              value: "false"
+            - name: DISABLE_AUTH
+              value: "false"
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: 8000
+            initialDelaySeconds: 10
+            periodSeconds: 15
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "512Mi"

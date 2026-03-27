@@ -1,0 +1,23 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: bicycle-service
+  namespace: bicycle-network
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: <ACM_CERTIFICATE_ARN>
+spec:
+  rules:
+    - host: api.bicycle-network.com
+      http:
+        paths:
+          - path: /bikes
+            pathType: Prefix
+            backend:
+              service:
+                name: bicycle-service
+                port:
+                  number: 80
