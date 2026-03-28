@@ -8,6 +8,18 @@ def test_login_success(client, registered_user):
     assert data["token_type"] == "bearer"
 
 
+def test_login_jwt_contains_role(client, registered_user):
+    """The JWT access token includes the role claim."""
+    from app.core.security import decode_token
+
+    response = client.post("/auth/login", json=registered_user)
+    assert response.status_code == 200
+    token = response.json()["access_token"]
+    payload = decode_token(token)
+    assert payload is not None
+    assert payload["role"] == "user"
+
+
 def test_login_wrong_password(client, registered_user):
     """Login fails with an incorrect password."""
     response = client.post("/auth/login", json={

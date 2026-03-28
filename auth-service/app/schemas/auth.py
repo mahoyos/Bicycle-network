@@ -22,6 +22,7 @@ class RegisterRequest(BaseModel):
 class RegisterResponse(BaseModel):
     id: UUID
     email: str
+    role: str
     created_at: datetime
 
     class Config:
@@ -62,6 +63,7 @@ class PasswordResetRequest(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: str
+    role: str
     is_active: bool
     is_locked: bool
     created_at: datetime
