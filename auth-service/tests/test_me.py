@@ -8,6 +8,7 @@ def test_me_success(client, registered_user, auth_tokens):
     assert data["email"] == registered_user["email"]
     assert "id" in data
     assert "is_active" in data
+    assert data["role"] == "user"
     assert "hashed_password" not in data
 
 

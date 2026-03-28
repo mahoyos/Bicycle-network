@@ -24,6 +24,8 @@ type RentalService interface {
 	CreateRental(ctx context.Context, userID, bicycleID uuid.UUID) (*models.Rental, error)
 	FinalizeRental(ctx context.Context, rentalID, userID uuid.UUID) (*models.Rental, error)
 	GetActiveRental(ctx context.Context, userID uuid.UUID) (*models.Rental, error)
+	ListAllRentals(ctx context.Context, limit, offset int) ([]models.Rental, error)
+	CancelRental(ctx context.Context, rentalID uuid.UUID) (*models.Rental, error)
 }
 
 type rentalService struct {
@@ -120,5 +122,34 @@ func (s *rentalService) GetActiveRental(ctx context.Context, userID uuid.UUID) (
 		}
 		return nil, err
 	}
+	return rental, nil
+}
+
+func (s *rentalService) ListAllRentals(ctx context.Context, limit, offset int) ([]models.Rental, error) {
+	return s.rentalRepo.FindAll(ctx, limit, offset)
+}
+
+func (s *rentalService) CancelRental(ctx context.Context, rentalID uuid.UUID) (*models.Rental, error) {
+	rental, err := s.rentalRepo.FindByID(ctx, rentalID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrRentalNotFound
+		}
+		return nil, err
+	}
+
+	if rental.Status != models.StatusActive {
+		return nil, ErrNotActive
+	}
+
+	now := time.Now().UTC()
+	rental.Status = models.StatusCancelled
+	rental.EndTime = &now
+	rental.UpdatedAt = now
+
+	if err := s.rentalRepo.Update(ctx, rental); err != nil {
+		return nil, err
+	}
+
 	return rental, nil
 }

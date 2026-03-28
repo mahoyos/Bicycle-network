@@ -7,6 +7,7 @@ def test_register_success(client):
     assert response.status_code == 201
     data = response.json()
     assert data["email"] == "newuser@example.com"
+    assert data["role"] == "user"
     assert "id" in data
     assert "created_at" in data
     assert "hashed_password" not in data

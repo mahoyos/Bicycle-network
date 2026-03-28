@@ -13,6 +13,7 @@ type RentalRepository interface {
 	FindByID(ctx context.Context, id uuid.UUID) (*models.Rental, error)
 	FindActiveByUserID(ctx context.Context, userID uuid.UUID) (*models.Rental, error)
 	FindActiveByBicycleID(ctx context.Context, bicycleID uuid.UUID) (*models.Rental, error)
+	FindAll(ctx context.Context, limit, offset int) ([]models.Rental, error)
 	Update(ctx context.Context, rental *models.Rental) error
 }
 
@@ -57,6 +58,19 @@ func (r *rentalRepository) FindActiveByBicycleID(ctx context.Context, bicycleID 
 		return nil, err
 	}
 	return &rental, nil
+}
+
+func (r *rentalRepository) FindAll(ctx context.Context, limit, offset int) ([]models.Rental, error) {
+	var rentals []models.Rental
+	err := r.db.WithContext(ctx).
+		Order("created_at DESC").
+		Limit(limit).
+		Offset(offset).
+		Find(&rentals).Error
+	if err != nil {
+		return nil, err
+	}
+	return rentals, nil
 }
 
 func (r *rentalRepository) Update(ctx context.Context, rental *models.Rental) error {

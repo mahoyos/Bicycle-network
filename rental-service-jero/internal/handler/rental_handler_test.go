@@ -25,6 +25,10 @@ type mockRentalService struct {
 	finalizeErr    error
 	activeResult   *models.Rental
 	activeErr      error
+	listResult     []models.Rental
+	listErr        error
+	cancelResult   *models.Rental
+	cancelErr      error
 }
 
 func (m *mockRentalService) CreateRental(_ context.Context, _, _ uuid.UUID) (*models.Rental, error) {
@@ -39,21 +43,48 @@ func (m *mockRentalService) GetActiveRental(_ context.Context, _ uuid.UUID) (*mo
 	return m.activeResult, m.activeErr
 }
 
+func (m *mockRentalService) ListAllRentals(_ context.Context, _, _ int) ([]models.Rental, error) {
+	return m.listResult, m.listErr
+}
+
+func (m *mockRentalService) CancelRental(_ context.Context, _ uuid.UUID) (*models.Rental, error) {
+	return m.cancelResult, m.cancelErr
+}
+
 func setupTestRouter(svc service.RentalService) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
 
 	h := NewRentalHandler(svc)
 
-	// Simulate auth middleware by setting user_id
+	// Simulate auth middleware by setting user_id and role
 	authMiddleware := func(c *gin.Context) {
 		c.Set("user_id", uuid.MustParse("11111111-1111-1111-1111-111111111111"))
+		c.Set("role", "user")
 		c.Next()
 	}
 
 	r.POST("/rentals", authMiddleware, h.CreateRental)
 	r.PATCH("/rentals/:id/finalize", authMiddleware, h.FinalizeRental)
 	r.GET("/rentals/active", authMiddleware, h.GetActiveRental)
+
+	return r
+}
+
+func setupAdminTestRouter(svc service.RentalService, role string) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+
+	h := NewRentalHandler(svc)
+
+	authMiddleware := func(c *gin.Context) {
+		c.Set("user_id", uuid.MustParse("11111111-1111-1111-1111-111111111111"))
+		c.Set("role", role)
+		c.Next()
+	}
+
+	r.GET("/rentals", authMiddleware, h.ListAllRentals)
+	r.PATCH("/rentals/:id/cancel", authMiddleware, h.CancelRental)
 
 	return r
 }
@@ -286,6 +317,118 @@ func TestGetActiveRental_InternalError(t *testing.T) {
 	router := setupTestRouter(&mockRentalService{activeErr: context.DeadlineExceeded})
 
 	req, _ := http.NewRequest("GET", "/rentals/active", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+// --- Admin Handler Tests ---
+
+func TestListAllRentals_Success(t *testing.T) {
+	rentals := []models.Rental{
+		{ID: uuid.New(), Status: models.StatusActive, StartTime: time.Now().UTC()},
+		{ID: uuid.New(), Status: models.StatusFinalized, StartTime: time.Now().UTC()},
+	}
+
+	router := setupAdminTestRouter(&mockRentalService{listResult: rentals}, "admin")
+
+	req, _ := http.NewRequest("GET", "/rentals?limit=10&offset=0", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestListAllRentals_DefaultPagination(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{listResult: []models.Rental{}}, "admin")
+
+	req, _ := http.NewRequest("GET", "/rentals", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d", w.Code)
+	}
+}
+
+func TestListAllRentals_InternalError(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{listErr: context.DeadlineExceeded}, "admin")
+
+	req, _ := http.NewRequest("GET", "/rentals", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusInternalServerError {
+		t.Errorf("expected 500, got %d", w.Code)
+	}
+}
+
+func TestCancelRental_Success(t *testing.T) {
+	rentalID := uuid.New()
+	now := time.Now().UTC()
+	rental := &models.Rental{
+		ID:        rentalID,
+		Status:    models.StatusCancelled,
+		EndTime:   &now,
+		StartTime: now.Add(-1 * time.Hour),
+	}
+
+	router := setupAdminTestRouter(&mockRentalService{cancelResult: rental}, "admin")
+
+	req, _ := http.NewRequest("PATCH", "/rentals/"+rentalID.String()+"/cancel", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Errorf("expected 200, got %d: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCancelRental_InvalidID(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{}, "admin")
+
+	req, _ := http.NewRequest("PATCH", "/rentals/not-a-uuid/cancel", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("expected 400, got %d", w.Code)
+	}
+}
+
+func TestCancelRental_NotFound(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{cancelErr: service.ErrRentalNotFound}, "admin")
+
+	req, _ := http.NewRequest("PATCH", "/rentals/"+uuid.New().String()+"/cancel", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNotFound {
+		t.Errorf("expected 404, got %d", w.Code)
+	}
+}
+
+func TestCancelRental_NotActive(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{cancelErr: service.ErrNotActive}, "admin")
+
+	req, _ := http.NewRequest("PATCH", "/rentals/"+uuid.New().String()+"/cancel", nil)
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusConflict {
+		t.Errorf("expected 409, got %d", w.Code)
+	}
+}
+
+func TestCancelRental_InternalError(t *testing.T) {
+	router := setupAdminTestRouter(&mockRentalService{cancelErr: context.DeadlineExceeded}, "admin")
+
+	req, _ := http.NewRequest("PATCH", "/rentals/"+uuid.New().String()+"/cancel", nil)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

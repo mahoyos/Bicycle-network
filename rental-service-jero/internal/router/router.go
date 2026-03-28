@@ -22,6 +22,13 @@ func Setup(
 		auth.POST("/rentals", rentalHandler.CreateRental)
 		auth.PATCH("/rentals/:id/finalize", rentalHandler.FinalizeRental)
 		auth.GET("/rentals/active", rentalHandler.GetActiveRental)
+
+		admin := auth.Group("/")
+		admin.Use(middleware.RequireAdmin())
+		{
+			admin.GET("/rentals", rentalHandler.ListAllRentals)
+			admin.PATCH("/rentals/:id/cancel", rentalHandler.CancelRental)
+		}
 	}
 
 	return r

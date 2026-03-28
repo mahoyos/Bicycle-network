@@ -33,6 +33,8 @@ type mockRentalRepo struct {
 	activeByUserErr     error
 	activeByCycleResult *models.Rental
 	activeByCycleErr    error
+	findAllResult       []models.Rental
+	findAllErr          error
 	updateErr           error
 }
 
@@ -56,6 +58,10 @@ func (m *mockRentalRepo) FindActiveByUserID(_ context.Context, _ uuid.UUID) (*mo
 
 func (m *mockRentalRepo) FindActiveByBicycleID(_ context.Context, _ uuid.UUID) (*models.Rental, error) {
 	return m.activeByCycleResult, m.activeByCycleErr
+}
+
+func (m *mockRentalRepo) FindAll(_ context.Context, _, _ int) ([]models.Rental, error) {
+	return m.findAllResult, m.findAllErr
 }
 
 func (m *mockRentalRepo) Update(_ context.Context, _ *models.Rental) error {
@@ -245,5 +251,99 @@ func TestGetActiveRental_NotFound(t *testing.T) {
 	_, err := svc.GetActiveRental(context.Background(), uuid.New())
 	if err != ErrRentalNotFound {
 		t.Errorf("expected ErrRentalNotFound, got %v", err)
+	}
+}
+
+// --- ListAllRentals Tests ---
+
+func TestListAllRentals_Success(t *testing.T) {
+	rentals := []models.Rental{
+		{ID: uuid.New(), Status: models.StatusActive},
+		{ID: uuid.New(), Status: models.StatusFinalized},
+	}
+
+	svc := NewRentalService(
+		&mockRentalRepo{findAllResult: rentals},
+		&mockBikeRepo{},
+	)
+
+	result, err := svc.ListAllRentals(context.Background(), 20, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 2 {
+		t.Errorf("expected 2 rentals, got %d", len(result))
+	}
+}
+
+func TestListAllRentals_Empty(t *testing.T) {
+	svc := NewRentalService(
+		&mockRentalRepo{findAllResult: []models.Rental{}},
+		&mockBikeRepo{},
+	)
+
+	result, err := svc.ListAllRentals(context.Background(), 20, 0)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(result) != 0 {
+		t.Errorf("expected 0 rentals, got %d", len(result))
+	}
+}
+
+// --- CancelRental Tests ---
+
+func TestCancelRental_Success(t *testing.T) {
+	rental := &models.Rental{
+		ID:        uuid.New(),
+		UserID:    uuid.New(),
+		BicycleID: uuid.New(),
+		Status:    models.StatusActive,
+		StartTime: time.Now().UTC().Add(-1 * time.Hour),
+	}
+
+	svc := NewRentalService(
+		&mockRentalRepo{findByIDResult: rental},
+		&mockBikeRepo{},
+	)
+
+	result, err := svc.CancelRental(context.Background(), rental.ID)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if result.Status != models.StatusCancelled {
+		t.Errorf("expected status cancelled, got %s", result.Status)
+	}
+	if result.EndTime == nil {
+		t.Error("expected end_time to be set")
+	}
+}
+
+func TestCancelRental_NotFound(t *testing.T) {
+	svc := NewRentalService(
+		&mockRentalRepo{findByIDErr: gorm.ErrRecordNotFound},
+		&mockBikeRepo{},
+	)
+
+	_, err := svc.CancelRental(context.Background(), uuid.New())
+	if err != ErrRentalNotFound {
+		t.Errorf("expected ErrRentalNotFound, got %v", err)
+	}
+}
+
+func TestCancelRental_AlreadyFinalized(t *testing.T) {
+	rental := &models.Rental{
+		ID:     uuid.New(),
+		Status: models.StatusFinalized,
+	}
+
+	svc := NewRentalService(
+		&mockRentalRepo{findByIDResult: rental},
+		&mockBikeRepo{},
+	)
+
+	_, err := svc.CancelRental(context.Background(), rental.ID)
+	if err != ErrNotActive {
+		t.Errorf("expected ErrNotActive, got %v", err)
 	}
 }

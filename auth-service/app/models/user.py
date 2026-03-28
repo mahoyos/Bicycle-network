@@ -24,6 +24,7 @@ class User(Base):
                 primary_key=True, default=uuid_default)
     email = Column(String, unique=True, nullable=False, index=True)
     hashed_password = Column(String, nullable=False)
+    role = Column(String(20), nullable=False, default="user")
     is_active = Column(Boolean, default=True)
     is_locked = Column(Boolean, default=False)
     failed_attempts = Column(Integer, default=0)

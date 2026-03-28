@@ -111,7 +111,13 @@ class AuthService:
             )
 
         user_id = payload.get("sub")
-        access_token = create_access_token(data={"sub": user_id})
+        user = db.query(User).filter(User.id == user_id).first()
+        if not user:
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="User not found."
+            )
+        access_token = create_access_token(data={"sub": user_id, "role": user.role})
         return {"access_token": access_token, "token_type": "bearer"}
 
     # ── Revoke Refresh Token ──────────────────────────────────────────────────
@@ -185,8 +191,8 @@ class AuthService:
     # ── Internal helpers ──────────────────────────────────────────────────────
 
     def _generate_tokens(self, db: Session, user: User) -> dict:
-        access_token = create_access_token(data={"sub": str(user.id)})
-        refresh_token = create_refresh_token(data={"sub": str(user.id)})
+        access_token = create_access_token(data={"sub": str(user.id), "role": user.role})
+        refresh_token = create_refresh_token(data={"sub": str(user.id), "role": user.role})
 
         # Persist refresh token
         expires_at = datetime.now(timezone.utc) + timedelta(days=settings.REFRESH_TOKEN_EXPIRE_DAYS)
