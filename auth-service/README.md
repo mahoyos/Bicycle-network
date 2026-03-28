@@ -13,6 +13,8 @@ Authentication microservice for the **Red Bicicletas** platform. Built with **Fa
 - ✅ **Account lockout** after 5 consecutive failed login attempts (15 min)
 - ✅ **Refresh token revocation** (secure logout)
 - ✅ **Rate limiting** — max 10 requests/min per IP on auth endpoints
+- ✅ **Role-based user model** — each user has a `role` field (`"user"` or `"admin"`), included in JWT tokens
+- ✅ **Inactive user protection** — deactivated accounts receive 403 on authenticated endpoints
 - ✅ **Current user endpoint** (`/auth/me`)
 - ✅ **PostgreSQL** for user and token persistence
 - ✅ **Dockerized** with Docker Compose
@@ -147,10 +149,16 @@ Successful login
 ```json
 {
   "sub": "550e8400-e29b-41d4-a716-446655440000",
+  "role": "user",
   "type": "access",
   "exp": 1704123456
 }
 ```
+
+- `sub` — User UUID
+- `role` — User role (`"user"` by default, `"admin"` for administrators)
+- `type` — `"access"` or `"refresh"`
+- `exp` — Expiration timestamp
 
 ---
 
