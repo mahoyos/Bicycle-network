@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,9 @@ type RentalRepository interface {
 	FindActiveByBicycleID(bicycleID uuid.UUID) (*models.Rental, error)
 	Finalize(rentalID uuid.UUID) (*models.Rental, error)
 	GetByID(rentalID uuid.UUID) (*models.Rental, error)
+	CreatePendingDelete(bicycleID uuid.UUID) error
+	FindPendingDeleteByBicycleID(bicycleID uuid.UUID) (*models.PendingDelete, error)
+	MarkPendingDeleteProcessed(bicycleID uuid.UUID) error
 }
 
 // Messaging interface for dependency injection and testing
@@ -86,6 +90,9 @@ func (s *RentalsService) FinalizeRental(userID uuid.UUID, rentalID uuid.UUID) (*
 		_ = s.messaging.PublishBicycleReturned(rental.BicycleID.String())
 	}
 
+	// Check if there's a pending delete for this bicycle
+	s.processPendingDelete(rental.BicycleID)
+
 	return finalized, nil
 }
 
@@ -112,6 +119,46 @@ func (s *RentalsService) GetActiveRental(userID uuid.UUID) (*schemas.ActiveRenta
 		Duration:      rental.Duration,
 		DurationSoFar: durationSoFar,
 	}, nil
+}
+
+// HandleBicycleDeleted is called by the RabbitMQ consumer when a DELETED event arrives.
+// If the bicycle is currently rented, it saves a pending delete.
+// If not rented, it does nothing (the bike is already gone from Bicycle Service).
+func (s *RentalsService) HandleBicycleDeleted(bicycleID uuid.UUID) {
+	// Check if this bicycle has an active rental
+	rental, err := s.repo.FindActiveByBicycleID(bicycleID)
+	if err != nil {
+		log.Printf("Error checking active rental for bike %s: %v", bicycleID, err)
+		return
+	}
+
+	if rental != nil {
+		// Bicycle is currently rented — save as pending delete
+		if err := s.repo.CreatePendingDelete(bicycleID); err != nil {
+			log.Printf("Error creating pending delete for bike %s: %v", bicycleID, err)
+			return
+		}
+		log.Printf("Bicycle %s is rented, saved pending delete", bicycleID)
+	} else {
+		log.Printf("Bicycle %s is not rented, no action needed", bicycleID)
+	}
+}
+
+// processPendingDelete checks if there's a pending delete for the bicycle
+// and marks it as processed after the rental is finalized.
+func (s *RentalsService) processPendingDelete(bicycleID uuid.UUID) {
+	pd, err := s.repo.FindPendingDeleteByBicycleID(bicycleID)
+	if err != nil {
+		log.Printf("Error checking pending delete for bike %s: %v", bicycleID, err)
+		return
+	}
+	if pd != nil {
+		if err := s.repo.MarkPendingDeleteProcessed(bicycleID); err != nil {
+			log.Printf("Error marking pending delete as processed for bike %s: %v", bicycleID, err)
+			return
+		}
+		log.Printf("Pending delete processed for bicycle %s", bicycleID)
+	}
 }
 
 // Custom error types

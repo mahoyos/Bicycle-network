@@ -14,11 +14,14 @@ import (
 
 // Mock repository
 type mockRepo struct {
-	createFn              func(uuid.UUID, uuid.UUID) (*models.Rental, error)
-	findActiveByUserIDFn  func(uuid.UUID) (*models.Rental, error)
-	findActiveByBikeIDFn  func(uuid.UUID) (*models.Rental, error)
-	finalizeFn            func(uuid.UUID) (*models.Rental, error)
-	getByIDFn             func(uuid.UUID) (*models.Rental, error)
+	createFn                      func(uuid.UUID, uuid.UUID) (*models.Rental, error)
+	findActiveByUserIDFn          func(uuid.UUID) (*models.Rental, error)
+	findActiveByBikeIDFn          func(uuid.UUID) (*models.Rental, error)
+	finalizeFn                    func(uuid.UUID) (*models.Rental, error)
+	getByIDFn                     func(uuid.UUID) (*models.Rental, error)
+	createPendingDeleteFn         func(uuid.UUID) error
+	findPendingDeleteByBikeIDFn   func(uuid.UUID) (*models.PendingDelete, error)
+	markPendingDeleteProcessedFn  func(uuid.UUID) error
 }
 
 func (m *mockRepo) Create(userID, bicycleID uuid.UUID) (*models.Rental, error) {
@@ -35,6 +38,24 @@ func (m *mockRepo) Finalize(rentalID uuid.UUID) (*models.Rental, error) {
 }
 func (m *mockRepo) GetByID(rentalID uuid.UUID) (*models.Rental, error) {
 	return m.getByIDFn(rentalID)
+}
+func (m *mockRepo) CreatePendingDelete(bicycleID uuid.UUID) error {
+	if m.createPendingDeleteFn != nil {
+		return m.createPendingDeleteFn(bicycleID)
+	}
+	return nil
+}
+func (m *mockRepo) FindPendingDeleteByBicycleID(bicycleID uuid.UUID) (*models.PendingDelete, error) {
+	if m.findPendingDeleteByBikeIDFn != nil {
+		return m.findPendingDeleteByBikeIDFn(bicycleID)
+	}
+	return nil, nil
+}
+func (m *mockRepo) MarkPendingDeleteProcessed(bicycleID uuid.UUID) error {
+	if m.markPendingDeleteProcessedFn != nil {
+		return m.markPendingDeleteProcessedFn(bicycleID)
+	}
+	return nil
 }
 
 // Mock messaging
@@ -287,4 +308,124 @@ func TestGetActiveRentalNoneFound(t *testing.T) {
 
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "No active rental found")
+}
+
+// --- Pending Delete Tests ---
+
+func TestHandleBicycleDeletedWhenRented(t *testing.T) {
+	bicycleID := uuid.New()
+	pendingCreated := false
+
+	repo := &mockRepo{
+		findActiveByBikeIDFn: func(bid uuid.UUID) (*models.Rental, error) {
+			return &models.Rental{ID: uuid.New(), BicycleID: bid, Status: "active"}, nil
+		},
+		createPendingDeleteFn: func(bid uuid.UUID) error {
+			pendingCreated = true
+			assert.Equal(t, bicycleID, bid)
+			return nil
+		},
+	}
+
+	svc := services.NewRentalsService(repo, nil)
+	svc.HandleBicycleDeleted(bicycleID)
+
+	assert.True(t, pendingCreated)
+}
+
+func TestHandleBicycleDeletedWhenNotRented(t *testing.T) {
+	bicycleID := uuid.New()
+	pendingCreated := false
+
+	repo := &mockRepo{
+		findActiveByBikeIDFn: func(bid uuid.UUID) (*models.Rental, error) {
+			return nil, nil // not rented
+		},
+		createPendingDeleteFn: func(bid uuid.UUID) error {
+			pendingCreated = true
+			return nil
+		},
+	}
+
+	svc := services.NewRentalsService(repo, nil)
+	svc.HandleBicycleDeleted(bicycleID)
+
+	assert.False(t, pendingCreated)
+}
+
+func TestFinalizeProcessesPendingDelete(t *testing.T) {
+	userID := uuid.New()
+	rentalID := uuid.New()
+	bicycleID := uuid.New()
+	pendingProcessed := false
+
+	repo := &mockRepo{
+		getByIDFn: func(rid uuid.UUID) (*models.Rental, error) {
+			return &models.Rental{
+				ID: rid, UserID: userID, BicycleID: bicycleID,
+				Status: "active", StartTime: time.Now().Add(-1 * time.Hour),
+			}, nil
+		},
+		finalizeFn: func(rid uuid.UUID) (*models.Rental, error) {
+			now := time.Now()
+			dur := "1 hours 0 minutes 0 seconds"
+			return &models.Rental{
+				ID: rid, UserID: userID, BicycleID: bicycleID,
+				Status: "finalized", EndTime: &now, Duration: &dur,
+			}, nil
+		},
+		findPendingDeleteByBikeIDFn: func(bid uuid.UUID) (*models.PendingDelete, error) {
+			return &models.PendingDelete{ID: uuid.New(), BicycleID: bid}, nil
+		},
+		markPendingDeleteProcessedFn: func(bid uuid.UUID) error {
+			pendingProcessed = true
+			assert.Equal(t, bicycleID, bid)
+			return nil
+		},
+	}
+
+	pub := &mockPublisher{}
+	svc := services.NewRentalsService(repo, pub)
+	_, err := svc.FinalizeRental(userID, rentalID)
+
+	assert.NoError(t, err)
+	assert.True(t, pendingProcessed)
+}
+
+func TestFinalizeNoPendingDelete(t *testing.T) {
+	userID := uuid.New()
+	rentalID := uuid.New()
+	bicycleID := uuid.New()
+	pendingProcessed := false
+
+	repo := &mockRepo{
+		getByIDFn: func(rid uuid.UUID) (*models.Rental, error) {
+			return &models.Rental{
+				ID: rid, UserID: userID, BicycleID: bicycleID,
+				Status: "active", StartTime: time.Now().Add(-1 * time.Hour),
+			}, nil
+		},
+		finalizeFn: func(rid uuid.UUID) (*models.Rental, error) {
+			now := time.Now()
+			dur := "1 hours 0 minutes 0 seconds"
+			return &models.Rental{
+				ID: rid, UserID: userID, BicycleID: bicycleID,
+				Status: "finalized", EndTime: &now, Duration: &dur,
+			}, nil
+		},
+		findPendingDeleteByBikeIDFn: func(bid uuid.UUID) (*models.PendingDelete, error) {
+			return nil, nil // no pending delete
+		},
+		markPendingDeleteProcessedFn: func(bid uuid.UUID) error {
+			pendingProcessed = true
+			return nil
+		},
+	}
+
+	pub := &mockPublisher{}
+	svc := services.NewRentalsService(repo, pub)
+	_, err := svc.FinalizeRental(userID, rentalID)
+
+	assert.NoError(t, err)
+	assert.False(t, pendingProcessed)
 }

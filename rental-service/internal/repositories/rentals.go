@@ -87,3 +87,32 @@ func (r *RentalsRepository) GetByID(rentalID uuid.UUID) (*models.Rental, error) 
 	}
 	return &rental, nil
 }
+
+// --- Pending Deletes ---
+
+func (r *RentalsRepository) CreatePendingDelete(bicycleID uuid.UUID) error {
+	pd := &models.PendingDelete{
+		BicycleID: bicycleID,
+	}
+	// Use FirstOrCreate to avoid duplicates
+	return r.db.Where("bicycle_id = ? AND processed = false", bicycleID).
+		FirstOrCreate(pd).Error
+}
+
+func (r *RentalsRepository) FindPendingDeleteByBicycleID(bicycleID uuid.UUID) (*models.PendingDelete, error) {
+	var pd models.PendingDelete
+	err := r.db.Where("bicycle_id = ? AND processed = false", bicycleID).First(&pd).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			return nil, nil
+		}
+		return nil, err
+	}
+	return &pd, nil
+}
+
+func (r *RentalsRepository) MarkPendingDeleteProcessed(bicycleID uuid.UUID) error {
+	return r.db.Model(&models.PendingDelete{}).
+		Where("bicycle_id = ? AND processed = false", bicycleID).
+		Update("processed", true).Error
+}

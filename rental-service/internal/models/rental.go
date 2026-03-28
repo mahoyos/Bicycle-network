@@ -19,3 +19,16 @@ type Rental struct {
 func (Rental) TableName() string {
 	return "rentals"
 }
+
+// PendingDelete stores delete requests for bicycles that are currently rented.
+// When the rental is finalized, the pending delete is processed.
+type PendingDelete struct {
+	ID        uuid.UUID `gorm:"type:uuid;default:gen_random_uuid();primaryKey" json:"id"`
+	BicycleID uuid.UUID `gorm:"type:uuid;not null;uniqueIndex" json:"bicycle_id"`
+	CreatedAt time.Time `gorm:"not null;default:now()" json:"created_at"`
+	Processed bool      `gorm:"not null;default:false" json:"processed"`
+}
+
+func (PendingDelete) TableName() string {
+	return "pending_deletes"
+}

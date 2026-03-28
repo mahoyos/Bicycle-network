@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 	"github.com/mahoyos/Bicycle-network/rental-service/internal/config"
 	"github.com/mahoyos/Bicycle-network/rental-service/internal/database"
@@ -50,6 +51,21 @@ func main() {
 	}
 	svc := services.NewRentalsService(repo, publisher)
 	handler := handlers.NewRentalsHandler(svc)
+
+	// Start RabbitMQ consumer for bike lifecycle events (DELETED)
+	if mqClient != nil {
+		err := mqClient.StartConsumer(func(event messaging.BicycleEvent) {
+			bikeID, parseErr := uuid.Parse(event.BikeID)
+			if parseErr != nil {
+				log.Printf("Invalid bike_id in event: %s", event.BikeID)
+				return
+			}
+			svc.HandleBicycleDeleted(bikeID)
+		})
+		if err != nil {
+			log.Printf("WARNING: Failed to start RabbitMQ consumer: %v", err)
+		}
+	}
 
 	// Setup Gin router
 	router := gin.Default()

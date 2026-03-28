@@ -10,6 +10,8 @@ Microservice responsible for managing bicycle rentals within the Bicycle Network
 - ✅ JWT authentication (RS256) on all rental endpoints
 - ✅ Internal bicycle availability check via `rentals` table (no cross-service dependency)
 - ✅ Publishes `RETURNED` event to RabbitMQ fanout exchange `bike_lifecycle_events`
+- ✅ Consumes `DELETED` events from RabbitMQ to handle bicycle deletions during active rentals
+- ✅ Pending delete system: defers bicycle deletion until rental is finalized
 - ✅ Health and readiness probes (`/health`, `/ready`)
 - ✅ PostgreSQL with partial unique indexes to prevent race conditions
 - ✅ Dockerized with multi-stage build (~20MB image)
@@ -36,6 +38,7 @@ Layered architecture with strict dependency direction:
 ```
 Handlers → Services → Repositories → Database
                   ↘ Messaging (RabbitMQ)
+                      ↕ Publish (RETURNED) + Consume (DELETED)
 ```
 
 ## 📁 Project Structure
@@ -51,27 +54,28 @@ rental-service/
 │   ├── database/
 │   │   ├── connection.go               # PostgreSQL connection via GORM, migrations
 │   │   └── migrations/
-│   │       └── init.sql                # SQL schema: rentals table, indexes, constraints
+│   │       └── init.sql                # SQL schema: rentals + pending_deletes tables
 │   ├── dependencies/
 │   │   └── auth.go                     # JWT RS256 middleware for Gin
 │   ├── handlers/
 │   │   └── rentals.go                  # HTTP handlers (create, finalize, get active)
 │   ├── messaging/
 │   │   ├── rabbitmq.go                 # RabbitMQ connection, lifecycle, publish
+│   │   ├── consumer.go                 # RabbitMQ consumer for DELETED events
 │   │   └── events.go                   # RETURNED event definition and publishing
 │   ├── models/
-│   │   └── rental.go                   # GORM model for rentals table
+│   │   └── rental.go                   # GORM models: Rental + PendingDelete
 │   ├── repositories/
 │   │   └── rentals.go                  # Data access layer (CRUD queries)
 │   ├── schemas/
 │   │   └── rentals.go                  # Request/response DTOs
-│   └── services/
-│       └── rentals.go                  # Business logic, validation, orchestration
+│   ├── services/
+│       └── rentals.go                  # Business logic, validation, pending deletes
 ├── tests/
 │   ├── handlers/
 │   │   └── rentals_test.go             # HTTP + auth integration tests (16 tests)
 │   ├── services/
-│   │   └── rentals_test.go             # Business logic unit tests (11 tests)
+│   │   └── rentals_test.go             # Business logic unit tests (15 tests)
 │   ├── repositories/
 │   │   └── rentals_test.go             # Data access tests with SQL mock (5 tests)
 │   └── helpers/
@@ -112,16 +116,22 @@ All error responses follow the format:
 - A bicycle can only be rented by **one user** at a time (FR-26). Availability is validated internally via the `rentals` table.
 - Only the **owner** of a rental can finalize it. Other users receive `403`.
 - Finalizing a rental calculates the **duration** automatically (FR-28) and publishes a `RETURNED` event to RabbitMQ (FR-30).
+- If a bicycle is **deleted** while rented, the delete is saved as **pending**. When the user returns the bike, the pending delete is processed automatically.
 
 ## 📨 Events (RabbitMQ)
 
 Publishes to the **fanout exchange** `bike_lifecycle_events` (durable):
 
-| Action | Trigger | Message Format |
-|---|---|---|
-| `RETURNED` | After a rental is finalized | `{"bike_id": "<uuid>", "action": "RETURNED"}` |
+| Action | Direction | Trigger | Message Format |
+|---|---|---|---|
+| `RETURNED` | Publish | After a rental is finalized | `{"bike_id": "<uuid>", "action": "RETURNED"}` |
+| `DELETED` | Consume | Bicycle Service deletes a bike | `{"bike_id": "<uuid>", "action": "DELETED"}` |
 
 Messages are published with `delivery_mode: PERSISTENT` to survive broker restarts (NFR-13).
+
+The consumer listens on a durable queue `bike_lifecycle_events.rental` bound to the fanout exchange. When a `DELETED` event arrives:
+- If the bicycle is **not rented** → no action needed
+- If the bicycle **is rented** → the delete is saved as pending in the `pending_deletes` table and processed when the rental is finalized
 
 > **Note:** The `RETURNED` event follows the same format used by the Bicycle Service for `CREATED` and `DELETED` events. Any service bound to the `bike_lifecycle_events` exchange will receive it automatically.
 
@@ -207,10 +217,10 @@ go tool cover -func=coverage.out
 | Level | File | What is mocked | Tests |
 |---|---|---|---|
 | Repository | `tests/repositories/rentals_test.go` | Database (go-sqlmock) | 5 |
-| Service | `tests/services/rentals_test.go` | Repository + Messaging | 11 |
+| Service | `tests/services/rentals_test.go` | Repository + Messaging | 15 |
 | Handler | `tests/handlers/rentals_test.go` | Full service (in-memory repo) | 16 |
 
-**Total: 32 tests** covering all endpoints, auth flows, business rules, and error cases.
+**Total: 36 tests** covering all endpoints, auth flows, business rules, pending deletes, and error cases.
 
 ## ☸️ Production Deployment (AWS EKS)
 

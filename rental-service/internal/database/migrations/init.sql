@@ -22,3 +22,14 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_rentals_bicycle_active
 -- Un usuario solo puede tener un rental activo a la vez
 CREATE UNIQUE INDEX IF NOT EXISTS idx_rentals_user_active
     ON rentals(user_id) WHERE status = 'active';
+
+-- Pending deletes: stores delete requests for bicycles currently rented
+CREATE TABLE IF NOT EXISTS pending_deletes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    bicycle_id UUID NOT NULL UNIQUE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    processed BOOLEAN NOT NULL DEFAULT FALSE
+);
+
+CREATE INDEX IF NOT EXISTS idx_pending_deletes_bicycle_id ON pending_deletes(bicycle_id);
+CREATE INDEX IF NOT EXISTS idx_pending_deletes_processed ON pending_deletes(processed) WHERE processed = FALSE;

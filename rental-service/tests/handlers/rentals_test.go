@@ -76,6 +76,16 @@ func (m *mockRepo) GetByID(rentalID uuid.UUID) (*models.Rental, error) {
 	return r, nil
 }
 
+func (m *mockRepo) CreatePendingDelete(bicycleID uuid.UUID) error {
+	return nil
+}
+func (m *mockRepo) FindPendingDeleteByBicycleID(bicycleID uuid.UUID) (*models.PendingDelete, error) {
+	return nil, nil
+}
+func (m *mockRepo) MarkPendingDeleteProcessed(bicycleID uuid.UUID) error {
+	return nil
+}
+
 type mockPub struct{}
 
 func (m *mockPub) PublishBicycleReturned(bicycleID string) error { return nil }
