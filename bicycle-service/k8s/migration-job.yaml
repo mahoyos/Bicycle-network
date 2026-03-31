@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migration
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/bicycle-service:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/bicycle-service:latest
           command: ["python", "-c", "import asyncio; from app.database.connection import init_db; asyncio.run(init_db())"]
           envFrom:
             - secretRef:

@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migration
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/auth-service:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/auth-service:latest
           command: ["python", "-c", "from app.core.database import engine; from app.models.user import Base; Base.metadata.create_all(bind=engine)"]
           envFrom:
             - secretRef:

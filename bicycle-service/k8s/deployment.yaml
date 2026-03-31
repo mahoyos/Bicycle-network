@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: bicycle-service
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/bicycle-service:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/bicycle-service:latest
           ports:
             - containerPort: 8000
           envFrom:

@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: rental-service-jero
-          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/rental-service-jero:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/rental-service-jero:latest
           ports:
             - containerPort: 8080
           envFrom:
