@@ -47,7 +47,7 @@ def delete_event(db: Session, event_id: int):
     return db_event
 
 
-def create_registration(db: Session, user_id: int, event_id: int):
+def create_registration(db: Session, user_id: str, event_id: int):
     db_registration = models.Registration(user_id=user_id, event_id=event_id)
     db.add(db_registration)
     db.flush()
@@ -55,7 +55,7 @@ def create_registration(db: Session, user_id: int, event_id: int):
     return db_registration
 
 
-def delete_registration(db: Session, user_id: int, event_id: int):
+def delete_registration(db: Session, user_id: str, event_id: int):
     db_registration = db.query(models.Registration).filter(
         models.Registration.user_id == user_id,
         models.Registration.event_id == event_id
@@ -66,11 +66,11 @@ def delete_registration(db: Session, user_id: int, event_id: int):
     return db_registration
 
 
-def get_user_registrations(db: Session, user_id: int):
+def get_user_registrations(db: Session, user_id: str):
     return db.query(models.Registration).filter(models.Registration.user_id == user_id).all()
 
 
-def get_registration(db: Session, user_id: int, event_id: int):
+def get_registration(db: Session, user_id: str, event_id: int):
     return db.query(models.Registration).filter(
         models.Registration.user_id == user_id,
         models.Registration.event_id == event_id
