@@ -1,0 +1,20 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: rental-service-jero-migration
+  namespace: bicycle-network
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/rental-service-jero:latest
+          command: ["./rental-service"]
+          envFrom:
+            - secretRef:
+                name: rental-service-jero-secrets
+          env:
+            - name: RUN_MIGRATIONS
+              value: "true"

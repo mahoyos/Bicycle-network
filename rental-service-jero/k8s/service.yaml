@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: rental-service-jero
+  namespace: bicycle-network
+spec:
+  selector:
+    app: rental-service-jero
+  ports:
+    - protocol: TCP
+      port: 80
+      targetPort: 8080
+  type: ClusterIP

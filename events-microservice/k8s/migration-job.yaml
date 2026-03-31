@@ -1,0 +1,17 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: events-microservice-migration
+  namespace: bicycle-network
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/events-microservice:latest
+          command: ["python", "-c", "from app.database import create_tables; create_tables()"]
+          envFrom:
+            - secretRef:
+                name: events-microservice-secrets
