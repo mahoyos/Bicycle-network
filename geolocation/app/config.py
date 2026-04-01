@@ -5,7 +5,8 @@ class Settings(BaseSettings):
     mongodb_db_name: str = "geolocation_db"
     
     rabbitmq_url: str = "amqp://guest:guest@localhost:5672/"
-    rabbitmq_queue_lifecycle: str = "bike_lifecycle_events"
+    rabbitmq_exchange_lifecycle: str = "bike_lifecycle_events"
+    rabbitmq_queue_lifecycle: str = "bike_lifecycle_events.geolocation"
     rabbitmq_queue_location: str = "bike_location_events"
 
     api_prefix: str = "/api/v1"
