@@ -1,39 +1,15 @@
 package helpers
 
 import (
-	"crypto/rand"
-	"crypto/rsa"
-	"crypto/x509"
-	"encoding/pem"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
 )
 
 var (
-	PrivateKey *rsa.PrivateKey
-	PublicKey  *rsa.PublicKey
-	PublicPEM  string
+	SecretKey    = "test-secret-key-for-hmac-256"
+	WrongSecret  = "wrong-secret-key-for-hmac-256"
 )
-
-func init() {
-	var err error
-	PrivateKey, err = rsa.GenerateKey(rand.Reader, 2048)
-	if err != nil {
-		panic(err)
-	}
-	PublicKey = &PrivateKey.PublicKey
-
-	pubBytes, err := x509.MarshalPKIXPublicKey(PublicKey)
-	if err != nil {
-		panic(err)
-	}
-	pubPEM := pem.EncodeToMemory(&pem.Block{
-		Type:  "PUBLIC KEY",
-		Bytes: pubBytes,
-	})
-	PublicPEM = string(pubPEM)
-}
 
 func CreateToken(sub string, role string, expired bool) string {
 	now := time.Now()
@@ -47,8 +23,22 @@ func CreateToken(sub string, role string, expired bool) string {
 		"role": role,
 		"exp":  exp.Unix(),
 	}
-	token := jwt.NewWithClaims(jwt.SigningMethodRS256, claims)
-	signed, err := token.SignedString(PrivateKey)
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(SecretKey))
+	if err != nil {
+		panic(err)
+	}
+	return signed
+}
+
+func CreateTokenWithKey(sub string, role string, secret string) string {
+	claims := jwt.MapClaims{
+		"sub":  sub,
+		"role": role,
+		"exp":  time.Now().Add(1 * time.Hour).Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	signed, err := token.SignedString([]byte(secret))
 	if err != nil {
 		panic(err)
 	}

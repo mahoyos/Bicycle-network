@@ -20,7 +20,7 @@ async def get_current_user(request: Request) -> dict:
     token = _get_token_from_header(request)
 
     public_key = os.getenv("JWT_PUBLIC_KEY", "")
-    algorithm = os.getenv("JWT_ALGORITHM", "RS256")
+    algorithm = os.getenv("JWT_ALGORITHM", "HS256")
 
     try:
         payload = jwt.decode(token, public_key, algorithms=[algorithm])

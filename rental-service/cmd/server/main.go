@@ -90,7 +90,7 @@ func main() {
 
 	// Protected rental routes
 	rentals := router.Group("/rentals")
-	rentals.Use(dependencies.AuthMiddleware(cfg.JWTPublicKey, cfg.DisableAuth))
+	rentals.Use(dependencies.AuthMiddleware(cfg.JWTSecretKey, cfg.DisableAuth))
 	handler.RegisterRoutes(rentals)
 
 	// Start server

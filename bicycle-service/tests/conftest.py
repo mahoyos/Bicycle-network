@@ -3,32 +3,10 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 import pytest
-from cryptography.hazmat.primitives import serialization
-from cryptography.hazmat.primitives.asymmetric import rsa
 from jose import jwt
 
-# Generate RSA key pair for tests
-_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-_public_key = _private_key.public_key()
-
-PRIVATE_KEY_PEM = _private_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.PKCS8,
-    encryption_algorithm=serialization.NoEncryption(),
-).decode()
-
-PUBLIC_KEY_PEM = _public_key.public_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PublicFormat.SubjectPublicKeyInfo,
-).decode()
-
-# A different key pair for "invalid signature" tests
-_other_private_key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-OTHER_PRIVATE_KEY_PEM = _other_private_key.private_bytes(
-    encoding=serialization.Encoding.PEM,
-    format=serialization.PrivateFormat.PKCS8,
-    encryption_algorithm=serialization.NoEncryption(),
-).decode()
+SECRET_KEY = "test-secret-key-for-hmac-256"
+WRONG_SECRET_KEY = "wrong-secret-key-for-hmac-256"
 
 
 def create_token(role: str = "admin", expired: bool = False, wrong_key: bool = False) -> str:
@@ -37,8 +15,8 @@ def create_token(role: str = "admin", expired: bool = False, wrong_key: bool = F
         "role": role,
         "exp": datetime.now(UTC) + (timedelta(hours=-1) if expired else timedelta(hours=1)),
     }
-    key = OTHER_PRIVATE_KEY_PEM if wrong_key else PRIVATE_KEY_PEM
-    return jwt.encode(payload, key, algorithm="RS256")
+    key = WRONG_SECRET_KEY if wrong_key else SECRET_KEY
+    return jwt.encode(payload, key, algorithm="HS256")
 
 
 ADMIN_TOKEN = create_token(role="admin")
