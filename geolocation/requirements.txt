@@ -5,3 +5,4 @@ pymongo==4.6.3
 aio-pika==9.4.1
 pydantic==2.7.4
 pydantic-settings==2.3.4
+dnspython==2.6.1
