@@ -79,7 +79,7 @@ def register_for_event(event_id: int, registration: schemas.RegistrationCreate, 
 
 
 @router.delete("/events/{event_id}/registrations/{user_id}")
-def unregister_from_event(event_id: int, user_id: int, db: Session = Depends(get_db)):
+def unregister_from_event(event_id: int, user_id: str, db: Session = Depends(get_db)):
     try:
         registration = crud.delete_registration(db, user_id, event_id)
         if not registration:
@@ -97,22 +97,12 @@ def unregister_from_event(event_id: int, user_id: int, db: Session = Depends(get
 @router.get("/users/{user_id}/registrations", response_model=list[schemas.Registration])
 def get_user_registrations(user_id: str, db: Session = Depends(get_db)):
     try:
-        user_id_int = int(user_id)
-    except ValueError:
-        raise HTTPException(
-            status_code=400, detail="user_id must be a valid integer")
-    try:
-        registrations = crud.get_user_registrations(db, user_id_int)
+        registrations = crud.get_user_registrations(db, user_id)
         return registrations
     except SQLAlchemyError as e:
         logging.error(
-            f"Database error while fetching registrations for user {user_id_int}: {e}")
+            f"Database error while fetching registrations for user {user_id}: {e}")
         return []
-    except SQLAlchemyError as e:
-        logging.error(f"Database error while updating event {event_id}: {e}")
-        db.rollback()
-        raise HTTPException(
-            status_code=500, detail="Database error occurred while updating event")
 
 
 @router.delete("/events/{event_id}")

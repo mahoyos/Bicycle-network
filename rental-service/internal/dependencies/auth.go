@@ -1,8 +1,6 @@
 package dependencies
 
 import (
-	"crypto/x509"
-	"encoding/pem"
 	"net/http"
 	"strings"
 
@@ -16,7 +14,7 @@ type UserClaims struct {
 	jwt.RegisteredClaims
 }
 
-func AuthMiddleware(publicKeyPEM string, disabled bool) gin.HandlerFunc {
+func AuthMiddleware(secretKey string, disabled bool) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if disabled {
 			// Set a default user for development
@@ -40,21 +38,12 @@ func AuthMiddleware(publicKeyPEM string, disabled bool) gin.HandlerFunc {
 
 		tokenStr := parts[1]
 
-		block, _ := pem.Decode([]byte(publicKeyPEM))
-		if block == nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"detail": "Invalid public key configuration"})
-			return
-		}
-
-		pubKey, err := x509.ParsePKIXPublicKey(block.Bytes)
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"detail": "Failed to parse public key"})
-			return
-		}
-
 		claims := &UserClaims{}
 		token, err := jwt.ParseWithClaims(tokenStr, claims, func(t *jwt.Token) (interface{}, error) {
-			return pubKey, nil
+			if _, ok := t.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, jwt.ErrSignatureInvalid
+			}
+			return []byte(secretKey), nil
 		})
 
 		if err != nil {

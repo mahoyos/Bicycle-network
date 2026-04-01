@@ -28,6 +28,6 @@ class Registration(Base):
     __tablename__ = "Registrations"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
+    user_id = Column(String, nullable=False)
     event_id = Column(Integer, ForeignKey("Events.id"), nullable=False)
     registration_date = Column(DateTime, default=func.now())

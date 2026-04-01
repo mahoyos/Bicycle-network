@@ -7,11 +7,11 @@ import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
 
-from tests.conftest import PUBLIC_KEY_PEM, create_token
+from tests.conftest import SECRET_KEY, create_token
 
 # Set env vars before importing app
-os.environ["JWT_PUBLIC_KEY"] = PUBLIC_KEY_PEM
-os.environ["JWT_ALGORITHM"] = "RS256"
+os.environ["JWT_PUBLIC_KEY"] = SECRET_KEY
+os.environ["JWT_ALGORITHM"] = "HS256"
 
 from app.main import app
 from app.database.connection import get_pool

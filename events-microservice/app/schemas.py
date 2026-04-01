@@ -33,12 +33,12 @@ class Event(EventBase):
 
 
 class RegistrationBase(BaseModel):
-    user_id: int
+    user_id: str
     event_id: int
 
 
 class RegistrationCreate(BaseModel):
-    user_id: int
+    user_id: str
 
 
 class Registration(RegistrationBase):

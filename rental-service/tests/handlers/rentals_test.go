@@ -103,7 +103,7 @@ func setupRouter(repo *mockRepo) *gin.Engine {
 	})
 
 	rentals := router.Group("/rentals")
-	rentals.Use(dependencies.AuthMiddleware(helpers.PublicPEM, false))
+	rentals.Use(dependencies.AuthMiddleware(helpers.SecretKey, false))
 	h.RegisterRoutes(rentals)
 
 	return router
