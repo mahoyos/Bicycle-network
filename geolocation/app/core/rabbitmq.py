@@ -37,12 +37,24 @@ class RabbitMQManager:
             await self.connection.close()
             logger.info("RabbitMQ connection closed.")
 
-    async def start_listening(self, queue_name: str, callback: Callable[[dict], Awaitable[None]]):
+    async def start_listening(
+        self,
+        queue_name: str,
+        callback: Callable[[dict], Awaitable[None]],
+        exchange_name: str | None = None,
+    ):
         if not self.channel:
             raise Exception("Channel not initialized. Call connect() first.")
-        
+
         queue = await self.channel.declare_queue(queue_name, durable=True)
-        
+
+        if exchange_name:
+            exchange = await self.channel.declare_exchange(
+                exchange_name, aio_pika.ExchangeType.FANOUT, durable=True
+            )
+            await queue.bind(exchange)
+            logger.info(f"Queue '{queue_name}' bound to exchange '{exchange_name}'")
+
         async def process_message(message: AbstractIncomingMessage):
             async with message.process():
                 try:

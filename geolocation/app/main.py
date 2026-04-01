@@ -21,10 +21,11 @@ async def lifespan(app: FastAPI):
     await db_manager.connect()
     await rabbitmq_manager.connect()
     
-    # Start consumer for lifecycle events
+    # Start consumer for lifecycle events (bound to fanout exchange)
     await rabbitmq_manager.start_listening(
         queue_name=settings.rabbitmq_queue_lifecycle,
-        callback=handle_lifecycle_event
+        callback=handle_lifecycle_event,
+        exchange_name=settings.rabbitmq_exchange_lifecycle,
     )
     
     # Start consumer for location updates
