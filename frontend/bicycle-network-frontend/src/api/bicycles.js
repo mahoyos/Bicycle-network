@@ -1,4 +1,5 @@
-import client from './client';
+import createClient from './client';
+const client = createClient(import.meta.env.VITE_API_GATEWAY_URL_BIKES || 'http://localhost:8080');
 
 const PREFIX = import.meta.env.VITE_BIKES_PREFIX || '/bikes';
 
