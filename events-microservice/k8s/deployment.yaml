@@ -17,7 +17,7 @@ spec:
     spec:
       containers:
         - name: events-microservice
-          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/events-microservice:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/events-service:latest
           ports:
             - containerPort: 8000
           envFrom:

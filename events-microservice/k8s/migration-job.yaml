@@ -10,7 +10,7 @@ spec:
       restartPolicy: OnFailure
       containers:
         - name: migration
-          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/events-microservice:latest
+          image: 628786078121.dkr.ecr.us-east-1.amazonaws.com/events-service:latest
           command: ["python", "-c", "from app.database import create_tables; create_tables()"]
           envFrom:
             - secretRef:
