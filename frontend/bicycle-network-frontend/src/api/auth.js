@@ -33,7 +33,7 @@ export const authApi = {
   },
 
   getGoogleLoginUrl() {
-    const apiUrl = import.meta.env.VITE_API_GATEWAY_URL || 'http://localhost:8080';
+    const apiUrl = import.meta.env.VITE_API_GATEWAY_URL_AUTH || 'http://localhost:8080';
     return `${apiUrl}${PREFIX}/google/login`;
   },
 
