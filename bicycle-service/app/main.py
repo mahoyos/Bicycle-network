@@ -2,6 +2,7 @@ import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
 from app.database.connection import close_db, get_pool, init_db
@@ -20,6 +21,14 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Bicycle Service", lifespan=lifespan)
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 if os.getenv("DISABLE_AUTH", "false").lower() == "true":
     async def _no_auth():
