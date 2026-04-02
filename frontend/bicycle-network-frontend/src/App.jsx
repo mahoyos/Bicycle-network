@@ -12,6 +12,7 @@ import MapPage from './pages/MapPage'
 import Events from './pages/Events'
 import EventDetail from './pages/EventDetail'
 import Profile from './pages/Profile'
+import GoogleCallback from './pages/GoogleCallback'
 import { useAuth } from './contexts/AuthContext'
 import './App.css'
 
@@ -33,6 +34,7 @@ function App() {
       <Route path="/register" element={<Register />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
+      <Route path="/auth/callback" element={<GoogleCallback />} />
 
       {/* Protected routes */}
       <Route

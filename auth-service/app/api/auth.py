@@ -1,4 +1,7 @@
+import urllib.parse
+
 from fastapi import APIRouter, Depends, Request, HTTPException
+from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -72,12 +75,24 @@ async def google_login(request: Request):
 
 @router.get("/google/callback")
 async def google_callback(request: Request, db: Session = Depends(get_db)):
-    """Google callback. Create or get user and return JWT tokens."""
-    token = await oauth.google.authorize_access_token(request)
-    user_info = token.get("userinfo")
-    
-    if not user_info or not user_info.get("email"):
-        raise HTTPException(status_code=400, detail="Failed to retrieve user info from Google.")
-    
-    tokens = auth_service.login_or_register_google(db, user_info["email"])
-    return tokens
+    """Google callback. Create or get user and redirect to frontend with JWT tokens."""
+    try:
+        token = await oauth.google.authorize_access_token(request)
+        user_info = token.get("userinfo")
+
+        if not user_info or not user_info.get("email"):
+            return RedirectResponse(
+                url=f"{settings.FRONTEND_URL}/login?error=google_failed"
+            )
+
+        tokens = auth_service.login_or_register_google(db, user_info["email"])
+
+        params = urllib.parse.urlencode({
+            "access_token": tokens["access_token"],
+            "refresh_token": tokens["refresh_token"],
+        })
+        return RedirectResponse(url=f"{settings.FRONTEND_URL}/auth/callback?{params}")
+    except Exception:
+        return RedirectResponse(
+            url=f"{settings.FRONTEND_URL}/login?error=google_failed"
+        )
