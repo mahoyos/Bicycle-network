@@ -40,6 +40,6 @@ export const eventsApi = {
   },
 
   getUserRegistrations(userId) {
-    return client.get(`/users/${userId}/registrations`);
+    return client.get(`${PREFIX}/registrations/user/${userId}`);
   },
 };

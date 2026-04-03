@@ -94,7 +94,7 @@ def unregister_from_event(event_id: int, user_id: str, db: Session = Depends(get
             status_code=500, detail="Database error occurred while unregistering")
 
 
-@router.get("/users/{user_id}/registrations", response_model=list[schemas.Registration])
+@router.get("/events/registrations/user/{user_id}", response_model=list[schemas.Registration])
 def get_user_registrations(user_id: str, db: Session = Depends(get_db)):
     try:
         registrations = crud.get_user_registrations(db, user_id)
